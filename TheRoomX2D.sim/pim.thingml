@@ -15,22 +15,23 @@ import "timer.thingml"
 
 thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 	provided port get_sensor {
-		receives temperature
+		receives temperature, prompt, display_thermometer
 	}
 	required port request_sensor {
-		sends add_thermometer, set_polling_interval
+		sends add_thermometer, set_polling_interval, get_thermometer
 	}
 	required port request_actuator{
 		sends add_device, SwitchOn, SwitchOff
 	}
 	provided port human_input {
-		receives add_thermometer, add_device, SwitchOn, SwitchOff, set_temperature, set_polling_interval
+		receives add_thermometer, add_device, SwitchOn, SwitchOff, set_temperature, set_polling_interval, get_thermometer
 	}
 	required port human_output {
-		sends temperature, prompt
+		sends temperature, prompt,display_thermometer
 	}
 	
 	property tmrature:Double = 20 // the requested temperature for the room
+	property delta:Double = 1  //Default delta temperature for the room
 	property thermo_id:Integer // the single thermometer identifier
 	property switch_id:Integer // the single on-off switch identifier
 	
@@ -136,14 +137,15 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 			event set_temp:human_input?set_temperature
 			action do
 				tmrature = set_temp.t
+				delta = set_temp.delta
 				human_output!prompt("Now entering thermostat. Please give temperature observations") // SIMULATION: prompting on console for the user to react properly
 			end
 			
 			//Escape situations
 			transition -> Build
-			event get_sensor?temperature 
+			event get_sensor?temperature
 				// just discard, the thermostat is not running, yet (161103)
-			
+
 		} // end Build
 		
 		composite state Running init Thermostat keeps history {
@@ -153,14 +155,14 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				state TemprDecide {
 					transition -> TemprDecrease
 					event temp2:get_sensor?temperature
-					guard temp2.t>=tmrature-1  // We choose switch OFF as much as we can here
+					guard temp2.t>=tmrature+delta  // We choose switch OFF as much as we can here
 					action do
 						request_actuator!SwitchOff(switch_id)
 					end
 					
 					transition -> TemprIncrease
 					event temp2:get_sensor?temperature
-					guard temp2.t<tmrature-1
+					guard temp2.t<tmrature-delta
 					action do
 						request_actuator!SwitchOn(switch_id)
 					end
@@ -170,14 +172,14 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				
 					transition -> TemprIncrease 
 					event temp:get_sensor?temperature
-					guard temp.t<=tmrature+1 // it should keep increasing until well above the desired temperature
+					guard temp.t<tmrature+delta // it should keep increasing until well above the desired temperature
 					action do
 						// TRACING to follow thermostat print("TempIncrease: Observed=") print(temp.t) print(" Desired ") print(tmrature) print("\n") 
 					end
 					
 					transition -> TemprDecrease
 					event temp2:get_sensor?temperature
-					guard temp2.t>tmrature+1 
+					guard temp2.t>=tmrature+delta 
 					action do
 						request_actuator!SwitchOff(switch_id)
 					end
@@ -187,14 +189,14 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				
 					transition-> TemprDecrease
 					event temp:get_sensor?temperature
-					guard temp.t>=tmrature-1 // it should keep decreasing until well below the desired temperature
+					guard temp.t>=tmrature-delta // it should keep decreasing until well below the desired temperature
 					action do
 						// TRACING to follow thermostat print("TempDecrease: Observed=") print(temp.t) print(" Desired ") print(tmrature) print("\n") 
 					end
 					
 					transition -> TemprIncrease
 					event temp2:get_sensor?temperature
-					guard temp2.t<tmrature-1
+					guard temp2.t<tmrature-delta
 					action do
 						request_actuator!SwitchOn(switch_id)
 					end
@@ -216,6 +218,17 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				action do
 					tmrature = set_temp.t
 				end
+				transition -> Thermostat
+				event get_temp:human_input?get_thermometer
+				action do
+					request_sensor!get_thermometer(get_temp.id)
+				end
+				transition -> Thermostat
+				event disp_temp:get_sensor?display_thermometer
+				action do
+					human_output!display_thermometer(disp_temp.id,disp_temp.txt,disp_temp.t)
+				end
+				
 			} // end Thermostat
 			
 			state On {

@@ -79,9 +79,9 @@ thing TellstickManager includes PSM_Msg, GeneralMsg
 
 thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, TimerClient {
 // TimerClient introduced 160310
-	required port provide_val {sends temperature}
+	required port provide_val {sends temperature, display_thermometer}
 	required port show_values {sends temperature}
-	provided port require_val {receives add_thermometer, set_polling_interval}
+	provided port require_val {receives add_thermometer, set_polling_interval, get_thermometer}
 	provided port initial {receives initialize}
 	provided port get_values {receives temperature} // SIMULATION
 	
@@ -142,6 +142,23 @@ thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, 
 				thermotext[last_thermo]=addt.txt
 				thermoval[last_thermo]= 0 // just a default temperature
 				last_thermo = last_thermo+1
+			end
+			transition -> Idle
+			event gett:require_val?get_thermometer
+			action do
+				id_s = gett.id
+				i=0
+				found = false
+				temp_s = 0
+				while (i<last_thermo and (not found)) do
+					if (id_s==thermometers[i]) do
+						found=true // trick to terminate while loop
+					end
+					i=i+1
+				end
+				if (found) do
+					provide_val!display_thermometer(thermometers[i-1],thermotext[i-1], thermoval[i-1])
+				end
 			end
 			// SIMULATION receiving temperature from simulation interface
 			transition -> Idle
