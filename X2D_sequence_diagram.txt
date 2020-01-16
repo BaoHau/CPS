@@ -1,0 +1,32 @@
+@startuml
+participant "psm:PSM" as psm
+participant "pim:PIM" as pim
+actor human
+
+pim <- human : add_thermometer(id,txt)
+pim -> psm  : add_thermometer(id,txt)
+
+pim <- human : add_device(did)
+psm <- pim : add_device(did)
+
+pim <- human : set_temperature(temp1,delta)
+pim -> human : prompt("Now entering thermostat...")
+
+human -> pim : get_thermometer(id)
+pim -> psm : get_thermometer(id)
+psm -> pim : display_thermometer(id, txt, temp2)
+
+loop
+    "psm:PSM" as psm -> "pim:PIM" as pim : temperature(id1,txt1,temp2) 
+    alt temp2 < temp1-delta
+        pim -> psm : SwitchOn(did)
+    else temp2 > temp1+delta
+        pim -> psm : SwitchOff(did)
+    end
+end
+
+human -> pim : SwitchOn(did)
+pim -> psm : SwitchOn(did)
+human -> pim : SwitchOff(did)
+pim -> psm : SwitchOff(did)
+@enduml
