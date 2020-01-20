@@ -71,6 +71,11 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 					human_output!prompt("Please add thermometer")
 				end
 				// temperature is handled on Build level
+				transition -> AddThermo
+				event get_temp:human_input?get_thermometer
+				action do
+					human_output!prompt("Please add thermometer")
+				end
 			}
 			state AddDevice {
 				transition -> SetThermostat
@@ -100,6 +105,11 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				event human_input?add_thermometer
 				action do
 					human_output!prompt("Thermometer already added, add device")
+				end
+				transition -> AddDevice
+				event human_input?set_temperature
+				action do
+					human_output!prompt("Please add device") // SIMULATION: prompting on console for the user to react properly
 				end
 				// temperature and set_temperature handled on Build level
 			}
@@ -145,7 +155,17 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 			transition -> Build
 			event get_sensor?temperature
 				// just discard, the thermostat is not running, yet (161103)
-
+				
+			transition -> Build
+			event get_temp:human_input?get_thermometer
+			action do
+				request_sensor!get_thermometer(get_temp.id)
+			end
+			transition -> Build
+			event disp_temp:get_sensor?display_thermometer
+			action do
+				human_output!display_thermometer(disp_temp.id,disp_temp.txt,disp_temp.t)
+			end
 		} // end Build
 		
 		composite state Running init Thermostat keeps history {
@@ -217,18 +237,8 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				event set_temp:human_input?set_temperature
 				action do
 					tmrature = set_temp.t
-				end
-				transition -> Thermostat
-				event get_temp:human_input?get_thermometer
-				action do
-					request_sensor!get_thermometer(get_temp.id)
-				end
-				transition -> Thermostat
-				event disp_temp:get_sensor?display_thermometer
-				action do
-					human_output!display_thermometer(disp_temp.id,disp_temp.txt,disp_temp.t)
-				end
-				
+					delta = set_temp.delta
+				end		
 			} // end Thermostat
 			
 			state On {
@@ -246,6 +256,7 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				event set_temp:human_input?set_temperature
 				action do
 					tmrature = set_temp.t
+					delta = set_temp.delta
 				end
 			}
 			state Off {
@@ -263,6 +274,7 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				event set_temp:human_input?set_temperature
 				action do
 					tmrature = set_temp.t
+					delta = set_temp.delta
 				end	
 			}
 			
@@ -303,6 +315,16 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 			event human_input?set_temperature
 			action do
 				human_output!prompt("INTERNAL ERROR: Impossible set_temperature at PIM.Running")
+			end		
+			transition -> Running
+			event get_temp:human_input?get_thermometer
+			action do
+				request_sensor!get_thermometer(get_temp.id)
+			end
+			transition -> Running
+			event disp_temp:get_sensor?display_thermometer
+			action do
+				human_output!display_thermometer(disp_temp.id,disp_temp.txt,disp_temp.t)
 			end		
 		} // end Running
 	} // end PIM_behavior
