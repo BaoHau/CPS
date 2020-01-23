@@ -13,4 +13,4 @@ object Tellstick
 */
 
 object ZStickDriver
-@java_type "no.hiof.oysteiha.ZStickDriver"
+@java_type "no.hiof.project1.ZStickDriver"

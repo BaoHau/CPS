@@ -12,7 +12,7 @@ import "javatimer.thingml" // 160310
 // PSM specific messages
 
 thing fragment PSM_Msg {
-	message initialize(zs:String, zstdr:ZStickDriver);
+	message initialize(links:String[25], zstdr:ZStickDriver);
 }
 
 // Here we relate to the given jstick library and kick-down to it from ThingML
@@ -36,7 +36,7 @@ thing ZstickManager includes PSM_Msg, GeneralMsg
 @maven_dep "<dependency>
 <groupId>OpenHABZStickDriverJava</groupId>
 <artifactId>OpenHABZStickDriverJava</artifactId>
-<version>0.0.1-SNAPSHOT</version>
+<version>0.0.2-SNAPSHOT</version>
 </dependency>"
 { 	/* Ports may be defined here */
 	required port to_T1 {
@@ -52,10 +52,14 @@ thing ZstickManager includes PSM_Msg, GeneralMsg
 	}
 	
 	/* properties defined here */
-	property UID_ZStick : String = "6851bbe2" // this is set in initialize() function as the unique UID part of the Z-wave controller
-	property PrefixUrl:String = "http://openhabianpi:8080/rest/items/zwave_device_"
-	
-	property Zstick: ZStickDriver =`new no.hiof.oysteiha.ZStickDriver()`
+	property UID_ZStick : String = "bef03f83" // this is set in initialize() function as the unique UID part of the Z-wave controller
+	property PrefixUrl:String = "http://localhost:8080/rest/items/zwave_device_"
+	property Base_Api:String = "http://localhost:8080/rest"
+	property SensorTypeUid:String = "zwave:aeon_zw100_01_010"
+	property SensorChannelType:String = "zwave:sensor_temperature"
+	property ActuatorTypeUid:String = "zwave:fibaro_fgwp102_03_002"
+	property ActuatorChannelType:String = "zwave:switch_binary"
+	property Zstick: ZStickDriver =`new no.hiof.project1.ZStickDriver()`
 	
 	/*
 	property sensor_list:Sensor[25] // removed at SIMULATION
@@ -79,11 +83,6 @@ thing ZstickManager includes PSM_Msg, GeneralMsg
 	
 	*/
 
-
-	
-	
-	
-	
 	function observe_sensors() do
 		// Now we send to PIM all the Sensor gadgets which are managed by that Zstick
 		println("observe_sensors: TBD 190105")
@@ -97,10 +96,17 @@ thing ZstickManager includes PSM_Msg, GeneralMsg
 	function initialize() do
 	// kick-down initialization
 		//OpenHab API URl
-		var tmpstr:String = ``&PrefixUrl&` +`&UID_ZStick&``
-
-		to_T1!initialize(tmpstr, Zstick)
-		to_onoff1!initialize(tmpstr, Zstick)
+		var sensorLink:String[25]
+		`try {`
+						sensorLink = ``&Zstick&`.getAllLinkId(`&Base_Api&`, `&SensorTypeUid&`, `&SensorChannelType&`)`
+						`} catch (java.io.IOException x) {System.err.println("Caught IOException: " + x.getMessage());}`
+		
+		var actuatorLink:String[25]
+		`try {`
+						actuatorLink = ``&Zstick&`.getAllLinkId(`&Base_Api&`, `&ActuatorTypeUid&`, `&ActuatorChannelType&`)`
+						`} catch (java.io.IOException x) {System.err.println("Caught IOException: " + x.getMessage());}`
+		to_T1!initialize(sensorLink, Zstick)
+		to_onoff1!initialize(actuatorLink, Zstick)
 		
 		observe_sensors()
 		observe_devices()
@@ -120,16 +126,17 @@ thing ZstickManager includes PSM_Msg, GeneralMsg
 
 thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, TimerClient {
 // TimerClient introduced 160310
-	required port provide_val {sends temperature}
+	required port provide_val {sends temperature, display_thermometer}
 //	required port show_values {sends temperature} REMOVED FROM SIMULATION
-	provided port require_val {receives add_thermometer}
+	provided port require_val {receives add_thermometer, get_thermometer}
 	provided port initial {receives initialize}
 	
 	property zs:String // kick-down z-stick prefix of sensor name (identifier)
 	property Zstick: ZStickDriver
-	
-	property thermometers:Integer[25] // Identifiers of the thermometers in the set
-	property thermotext:String[25] // corresponding explanatory text 
+	readonly property maxSensor:Integer = 25
+	property thermometers:Integer[maxSensor] // Identifiers of the thermometers in the set
+	property thermotext:String[maxSensor] // corresponding explanatory text
+	property thermolink:String[maxSensor] // link to get thermostat 
 	property last_thermo:Integer = 0 // number of thermometers in the set 
 	property i:Integer // runner index in list
 	property poll_intrvl:Integer = 10000 // polling interval in milliseconds, default is like hardcoded value from X2.sim
@@ -139,33 +146,34 @@ thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, 
 	property txt_s:String // temporary for textual temperature
 	property temp_s:Double // temporary temperature value
 	property found:Boolean // temporary - true when item found in loop
-	
+	property TempSensorNode:String = "_node5_sensor_temperature"
 	statechart behaviorThermometerSet init Init {
 		state Init {
 			transition -> Idle
 			event temp: initial?initialize
 			action do
-				zs = temp.zs
+				thermolink = temp.links
 				Zstick = temp.zstdr
 				timer!timer_start(poll_intrvl) // starting the polling cycle
 			end
 		}
 		state Idle {
-		transition -> Idle
+			transition -> Idle
 			event timout:timer?timer_timeout // 160310
 			action do
 				i=0
 				while (i<last_thermo)do
 					id_s=thermometers[i]
-					s= thermotext[i]
+					s= thermolink[i]
 					// hardcoded only one thermometer
 					if (not (s==`null`)) // TODO find a way in ThingML to check existence?
 					do
 						`try {`
 						txt_s = ``&Zstick& `.getItemState(`&s&`).split(" ",2)[0]`
 						`} catch (java.io.IOException x) {System.err.println("Caught IOException: " + x.getMessage());}`
-						temp_s= `Double.valueOf(` &txt_s&`)`			
+						temp_s= `Double.valueOf(` &txt_s&`)`
 						provide_val!temperature(id_s,thermotext[i],temp_s)
+						println("Current temperature from sensor " + id_s + ": " + temp_s)
 					end
 					i=i+1
 				end 
@@ -176,12 +184,41 @@ thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, 
 			event addt:require_val?add_thermometer
 			action do				
 				id_s=addt.id
-				s=``&zs&`+"_node6_sensor_temperature"` // use Java concatenation
-				thermometers[last_thermo]=id_s
-				thermotext[last_thermo]=s
+				thermometers[last_thermo] = id_s
+				thermotext[last_thermo]= addt.txt
 				last_thermo = last_thermo+1
 			end
+			
+			transition -> Idle
+			event get_temp:require_val?get_thermometer
+			action do
+				id_s = get_temp.id
+				i=0
+				while (i<last_thermo and (not found)) do
+					if (id_s==thermometers[i]) do
+						found=true // trick to terminate while loop
+					end
+					i=i+1
+				end
+				if (found)
+				do
+					s= thermolink[i-1]
+					// hardcoded only one thermometer
+					if (not (s==`null`)) // TODO find a way in ThingML to check existence?
+					do
+						`try {`
+						txt_s = ``&Zstick& `.getItemState(`&s&`).split(" ",2)[0]`
+						`} catch (java.io.IOException x) {System.err.println("Caught IOException: " + x.getMessage());}`
+						temp_s= `Double.valueOf(` &txt_s&`)`			
+						provide_val!display_thermometer(id_s,thermotext[i-1],temp_s)
+					end
+					i=i+1
+				end
+				timer!timer_start(poll_intrvl) // restarting the polling cycle
+			end
 		}
+		
+		
 	}
 } // ThermometerSet
 
@@ -195,8 +232,9 @@ thing OnOffSet includes PSM_Msg, GeneralMsg, OnOffMsg{
 	property zs:String // kick-down 
 	property Zstick: ZStickDriver
 	
-	
-	property onoffswitches:Integer[25] // Identifiers of the onoffswitches in the set
+	readonly property maxSwitches:Integer = 25
+	property onoffswitches:Integer[maxSwitches] // Identifiers of the onoffswitches in the set
+	property onoffLink:String[maxSwitches] // Identifiers of the onoffswitches in the set
 	property last_onoff:Integer = 0 // number of onoff switches in the set 
 		
 	property i:Integer // runner index in list
@@ -205,13 +243,13 @@ thing OnOffSet includes PSM_Msg, GeneralMsg, OnOffMsg{
 	// 190105 property mth:Long // temporary methods
 	property found:Boolean // temporary boolean used in while loop
 	property status:Long // of either ON or OFF not very reliable since no real result is returned
-	
+	property PowerPlugNode:String = "_node6_switch_binary"
 	statechart behaviorOnOffSet init Init {
 		state Init {
 			transition -> Idle
 			event initial: initial?initialize
 			action do
-				zs = initial.zs
+				onoffLink = initial.links
 				Zstick = initial.zstdr				
 			end
 		}
@@ -237,11 +275,11 @@ thing OnOffSet includes PSM_Msg, GeneralMsg, OnOffMsg{
 					i=i+1
 				end
 				if (found) do
-					d= ``&zs&`+"_node4_switch_binary"` // use Java concatenation
+					d= onoffLink[i-1]
 					
 					`try {`
 						if (not (d==`null`)) do
-							``&Zstick&`.sendCommand((`&d&`), "ON");`
+							``&Zstick&`.setItemState((`&d&`), "ON");`
 							println("Turning ON")	
 						end
 					`} catch (java.io.IOException x) {System.err.println("Caught IOException: " + x.getMessage());}`
@@ -260,17 +298,16 @@ thing OnOffSet includes PSM_Msg, GeneralMsg, OnOffMsg{
 					i=i+1
 				end
 				if (found) do
-					d= ``&zs&`+"_node4_switch_binary"` // use Java concatenation
+					d= onoffLink[i-1]
 					
 					`try {`
 						if (not (d==`null`)) do
-							``&Zstick&`.sendCommand((`&d&`), "OFF");`
+							``&Zstick&`.setItemState((`&d&`), "OFF");`
 							println("Turning OFF")	
 						end
 					`} catch (java.io.IOException x) {System.err.println("Caught IOException: " + x.getMessage());}`
 				end
 			end
-			
 		}
 	}
 }
