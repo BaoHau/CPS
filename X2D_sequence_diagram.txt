@@ -7,10 +7,13 @@ pim <- human : add_thermometer(id,txt)
 pim -> psm  : add_thermometer(id,txt)
 
 pim <- human : add_device(did)
-psm <- pim : add_device(did)
+psm <- pim : add_device(did)e
 
-pim <- human : set_temperature(temp1,delta)
+pim <- human : set_temperature(temp1, delta)
 pim -> human : prompt("Now entering thermostat...")
+
+human -> pim : set_comfort_temp(delta)
+pim -> human : prompt("Now entering comfort temperature")
 
 human -> pim : get_thermometer(id)
 pim -> psm : get_thermometer(id)
@@ -20,8 +23,10 @@ loop
     "psm:PSM" as psm -> "pim:PIM" as pim : temperature(id1,txt1,temp2) 
     alt temp2 < temp1-delta
         pim -> psm : SwitchOn(did)
-    else temp2 > temp1+delta
+    else if temp2 > temp1+delta
         pim -> psm : SwitchOff(did)
+    else if temp 2 > temp1-delta and temp2 < temp1+delta
+        pim -> psm : continue in current state
     end
 end
 
