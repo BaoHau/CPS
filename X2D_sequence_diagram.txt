@@ -9,7 +9,7 @@ pim -> psm  : add_thermometer(id,txt)
 pim <- human : add_device(did)
 psm <- pim : add_device(did)e
 
-pim <- human : set_temperature(temp1, delta)
+pim <- human : set_temperature(temp1)
 pim -> human : prompt("Now entering thermostat...")
 
 human -> pim : set_temp_deviation(delta)
@@ -18,6 +18,7 @@ pim -> human : prompt("Now entering thermostat")
 human -> pim : get_thermometer(id)
 pim -> psm : get_thermometer(id)
 psm -> pim : display_thermometer(id, txt, temp2)
+pim -> human : display_thermometer(id, txt, temp2)
 
 loop
     "psm:PSM" as psm -> "pim:PIM" as pim : temperature(id1,txt1,temp2) 
