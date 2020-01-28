@@ -12,8 +12,8 @@ psm <- pim : add_device(did)e
 pim <- human : set_temperature(temp1, delta)
 pim -> human : prompt("Now entering thermostat...")
 
-human -> pim : set_comfort_temp(delta)
-pim -> human : prompt("Now entering comfort temperature")
+human -> pim : set_temp_deviation(delta)
+pim -> human : prompt("Now entering thermostat")
 
 human -> pim : get_thermometer(id)
 pim -> psm : get_thermometer(id)
