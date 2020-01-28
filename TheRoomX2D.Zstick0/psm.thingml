@@ -194,6 +194,7 @@ thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, 
 			action do
 				id_s = get_temp.id
 				i=0
+				found = false
 				while (i<last_thermo and (not found)) do
 					if (id_s==thermometers[i]) do
 						found=true // trick to terminate while loop

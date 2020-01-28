@@ -122,6 +122,16 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				action do
 					human_output!prompt("Thermometer already added, add device")
 				end
+				transition -> AddDevice
+				event human_input?set_temperature
+				action do
+					human_output!prompt("Please add device")
+				end
+				transition -> AddDevice
+				event human_input?set_temp_deviation
+				action do
+					human_output!prompt("Please add device")
+				end
 				// temperature and set_temperature handled on Build level
 			}
 			state SetThermostat {
@@ -193,22 +203,29 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 				state TemprDecide {
 					transition -> TemprDecrease
 					event temp2:get_sensor?temperature
-					guard temp2.t>=tmrature+delta  // We choose switch OFF as much as we can here
+					guard temp2.t>=tmrature+delta and last_switch_state != 0  // We choose switch OFF as much as we can here
 					action do
-						if (last_switch_state != 0)
-						do
-							turnOff(switch_id)
-						end
+						turnOff(switch_id)
 					end
 					
 					transition -> TemprIncrease
 					event temp2:get_sensor?temperature
-					guard temp2.t<tmrature-delta
+					guard temp2.t<tmrature-delta and last_switch_state != 1
 					action do
-						if (last_switch_state != 1)
-						do
-							turnOn(switch_id)
-						end
+						turnOn(switch_id)
+					end
+					transition -> TemprDecrease
+					event temp2:get_sensor?temperature
+					guard temp2.t>=tmrature+delta and last_switch_state == 0 // We choose switch OFF as much as we can here
+					action do
+						//Do not need to turn switch off again
+					end
+					
+					transition -> TemprIncrease
+					event temp2:get_sensor?temperature
+					guard temp2.t<tmrature-delta and last_switch_state == 1 
+					action do
+						//Do not need to turn switch on again
 					end
 				}
 				
@@ -362,7 +379,12 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 			event human_input?set_temperature
 			action do
 				human_output!prompt("INTERNAL ERROR: Impossible set_temperature at PIM.Running")
-			end		
+			end
+			transition -> Running
+			event human_input?set_temp_deviation
+			action do
+				human_output!prompt("INTERNAL ERROR: Impossible set_temp_deviation at PIM.Running")
+			end
 		} // end Running
 	} // end PIM_behavior
 } // end PIM thing
