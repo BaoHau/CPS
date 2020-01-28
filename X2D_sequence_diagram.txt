@@ -22,12 +22,10 @@ pim -> human : display_thermometer(id, txt, temp2)
 
 loop
     "psm:PSM" as psm -> "pim:PIM" as pim : temperature(id1,txt1,temp2) 
-    alt temp2 < temp1-delta
+    alt temp2 < temp1-delta and lastSwitchState != 1
         pim -> psm : SwitchOn(did)
-    else if temp2 > temp1+delta
+    else if temp2 > temp1+delta and lastSwitchState != 0
         pim -> psm : SwitchOff(did)
-    else if temp 2 > temp1-delta and temp2 < temp1+delta
-        pim -> psm : continue in current state
     end
 end
 
