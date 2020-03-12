@@ -1,0 +1,93 @@
+/* ThingML Framework */
+
+// Base datatypes
+import "datatypes.thingml" from stl
+
+import "pim.thingml"
+
+//protocol stdio
+//@serializer "JSON"
+
+protocol MQTT @serializer "JSON"
+  @mqtt_broker_address "broker.hivemq.com" 
+  @mqtt_publish_topic "CPS2020/thingmlOut"
+  @mqtt_subscribe_topic "CPS2020/thingml";
+
+// A Mock only needs the port definition and a Swing component will be generated
+thing Human includes TemperatureMsg, GeneralMsg, OnOffMsg
+
+{ 	required port send_cmd {
+		sends add_thermometer, add_device, SwitchOn, SwitchOff, set_temperature, set_temp_deviation, set_polling_interval, get_thermometer
+	}
+	
+	provided port MQTT {
+		receives add_thermometer, add_device, SwitchOn, SwitchOff, set_temperature, set_temp_deviation, set_polling_interval, get_thermometer
+		sends temperature, prompt, display_thermometer
+	}
+	
+	provided port output {
+		receives temperature, prompt, display_thermometer
+	}
+	
+	statechart HumanBehavior init Idle {
+		state Idle {
+			transition -> Idle
+			event at:MQTT?add_thermometer
+			action send_cmd!add_thermometer(at.id, at.txt)
+			
+			transition -> Idle
+			event ad:MQTT?add_device
+			action send_cmd!add_device(ad.did)
+			
+			transition -> Idle
+			event son:MQTT?SwitchOn
+			action do
+				send_cmd!SwitchOn(son.did)
+			end
+			
+			transition -> Idle
+			event sof:MQTT?SwitchOff
+			action do
+				send_cmd!SwitchOff(sof.did)
+			end
+			
+			transition -> Idle
+			event st:MQTT?set_temperature
+			action send_cmd!set_temperature(st.t)
+			
+			transition -> Idle
+			event std:MQTT?set_temp_deviation
+			action send_cmd!set_temp_deviation(std.d)
+			
+			transition -> Idle
+			event gt:MQTT?get_thermometer
+			action send_cmd!get_thermometer(gt.id)
+			
+			transition -> Idle
+			event sp:MQTT?set_polling_interval
+			action send_cmd!set_polling_interval(sp.intrvl)
+			
+			transition -> Idle
+			event tp:output?temperature
+			action do
+				println "id: ", tp.id, "  txt: ", tp.txt, "   t: ", tp.t
+				MQTT!temperature(tp.id,tp.txt,tp.t)
+			end
+			
+			transition -> Idle
+			event dt:output?display_thermometer
+			action do
+				println "Display thermometer id:  ", dt.id, "   text: ", dt.txt, "   temp: ",dt.t
+				MQTT!display_thermometer(dt.id,dt.txt,dt.t)
+			end
+			
+			transition -> Idle
+			event prm:output?prompt
+			action do
+				println prm.txt
+				MQTT!prompt(prm.txt)
+			end		
+		}//End state 
+	}//End State chart
+}
+
