@@ -15,7 +15,7 @@ import "timer.thingml"
 
 thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 	provided port get_sensor {
-		receives temperature, display_thermometer
+		receives temperature, display_thermometer,monitor_temperature
 	}
 	required port request_sensor {
 		sends add_thermometer, set_polling_interval, get_thermometer
@@ -194,6 +194,14 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 			action do
 				human_output!display_thermometer(disp_temp.id, disp_temp.txt, disp_temp.t)
 			end
+			
+			transition -> Build
+			event monitor:get_sensor?monitor_temperature
+			action do
+				println("Monitor temperature: " + monitor.t)
+				human_output!display_thermometer(monitor.id, monitor.txt, monitor.t)
+			end
+			
 		} // end Build
 		
 		composite state Running init Thermostat keeps history {
@@ -384,6 +392,12 @@ thing PIM includes GeneralMsg, TemperatureMsg, OnOffMsg {
 			event human_input?set_temp_deviation
 			action do
 				human_output!prompt("INTERNAL ERROR: Impossible set_temp_deviation at PIM.Running")
+			end
+			transition -> Running
+			event monitor:get_sensor?monitor_temperature
+			action do
+				println("Monitor temperature: " + monitor.t)
+				human_output!display_thermometer(monitor.id, monitor.txt, monitor.t)
 			end
 		} // end Running
 	} // end PIM_behavior

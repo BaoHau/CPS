@@ -9,7 +9,7 @@ import "pim.thingml"
 //@serializer "JSON"
 
 protocol MQTT @serializer "JSON"
-  @mqtt_broker_address "broker.hivemq.com" 
+  @mqtt_broker_address "cps2020.westeurope.azurecontainer.io" 
   @mqtt_publish_topic "CPS2020/thingmlOut"
   @mqtt_subscribe_topic "CPS2020/thingml";
 
