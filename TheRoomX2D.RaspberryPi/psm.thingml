@@ -124,7 +124,7 @@ thing ZstickManager includes PSM_Msg, GeneralMsg
 
 thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, TimerClient {
 // TimerClient introduced 160310
-	required port provide_val {sends temperature, display_thermometer}
+	required port provide_val {sends temperature, display_thermometer,monitor_temperature}
 //	required port show_values {sends temperature} REMOVED FROM SIMULATION
 	provided port require_val {receives add_thermometer, get_thermometer}
 	provided port initial {receives initialize}
@@ -135,7 +135,8 @@ thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, 
 	property thermometers:Integer[maxSensor] // Identifiers of the thermometers in the set
 	property thermotext:String[maxSensor] // corresponding explanatory text
 	property thermolink:String[maxSensor] // link to get thermostat 
-	property last_thermo:Integer = 0 // number of thermometers in the set 
+	property last_thermo:Integer = 0 // number of thermometers in the set
+	property last_thermo_val:Double = -273 // last temperature received from thermometer
 	property i:Integer // runner index in list
 	property poll_intrvl:Integer = 10000 // polling interval in milliseconds, default is like hardcoded value from X2.sim
 	property s:String // runner Sensor name 190105
@@ -171,6 +172,10 @@ thing ThermometerSet includes PSMSensorSet,TemperatureMsg, GeneralMsg, PSM_Msg, 
 						`} catch (java.io.IOException x) {System.err.println("Caught IOException: " + x.getMessage());}`
 						temp_s= `Double.valueOf(` &txt_s&`)`
 						provide_val!temperature(id_s,thermotext[i],temp_s)
+						if (last_thermo_val != temp_s) do
+							last_thermo_val = temp_s
+							provide_val!monitor_temperature(id_s,thermotext[i],temp_s)
+						end
 						println("Current temperature from sensor " + id_s + ": " + temp_s)
 					end
 					i=i+1

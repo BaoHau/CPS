@@ -18,6 +18,7 @@ thing fragment TemperatureMsg {
     message set_temp_deviation(d:Double);
     message get_thermometer(id:Integer);
     message display_thermometer(id:Integer,txt:String,t:Double);
+    message monitor_temperature(id:Integer, txt:String, t : Double);
 }
 
 // Devices actuators in general
