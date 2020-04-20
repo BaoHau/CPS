@@ -1,0 +1,269 @@
+thing PIM includes TemperatureMsg , OnOffMsg , DeviceGeneral {
+	required port MQTT {
+		sends SwitchOn_Control sends SwitchOff_Control receives display_thermometer receives set_temperature receives set_temp_deviation receives SwitchOn receives SwitchOff receives add_thermometer receives add_device
+	}
+	property tmrature : Double = 20
+	property delta : Double = 1
+	property thermo_id : Integer
+	property switch_id : Integer
+	property last_switch_state : Integer = -1
+	function turnOn(did : Integer) do
+		println ("Controller turn switch on")
+		last_switch_state = 1
+		MQTT!SwitchOn_Control(did)
+	end
+	function turnOff(did : Integer) do
+		println ("Controller turn switch off")
+		last_switch_state = 0
+		MQTT!SwitchOff_Control(did)
+	end
+	statechart PIM_behavior init WaitingForBuild {
+		state WaitingForBuild {
+			transition -> WaitingForBuild
+			event addt : MQTT?add_thermometer
+			action do
+				thermo_id = addt.id
+			end
+			transition -> WaitingForBuild
+			event adddev : MQTT?add_device
+			action do
+				switch_id = adddev.did
+			end
+			transition -> Thermostat
+			event set_temp : MQTT?set_temperature
+			action do
+				tmrature = set_temp.t
+				println ("Enter running state with comfort temp: " + tmrature + " and temp deviation: " + delta)
+			end
+			transition -> Thermostat
+			event set_deviation : MQTT?set_temp_deviation
+			action do
+				delta = set_deviation.d
+				println ("Enter running state with comfort temp: " + tmrature + " and temp deviation: " + delta)
+			end
+		}
+		composite state Thermostat init TemprDecide {
+			state TemprDecide {
+				transition -> TemprDecrease
+				event temp2 : MQTT?display_thermometer
+				guard temp2.t >= tmrature + delta and last_switch_state != 0
+				action do
+					turnOff(switch_id)
+				end
+				transition -> TemprIncrease
+				event temp2 : MQTT?display_thermometer
+				guard temp2.t < tmrature - delta and last_switch_state != 1
+				action do
+					turnOn(switch_id)
+				end
+				transition -> TemprDecrease
+				event temp2 : MQTT?display_thermometer
+				guard temp2.t >= tmrature + delta and last_switch_state == 0
+				action do
+				end
+				transition -> TemprIncrease
+				event temp2 : MQTT?display_thermometer
+				guard temp2.t < tmrature - delta and last_switch_state == 1
+				action do
+				end
+			}
+			state TemprIncrease {
+				transition -> TemprIncrease
+				event temp : MQTT?display_thermometer
+				guard temp.t < tmrature + delta
+				action do
+				end
+				transition -> TemprDecrease
+				event temp2 : MQTT?display_thermometer
+				guard temp2.t >= tmrature + delta
+				action do
+					turnOff(switch_id)
+				end
+			}
+			state TemprDecrease {
+				transition -> TemprDecrease
+				event temp : MQTT?display_thermometer
+				guard temp.t >= tmrature - delta
+				action do
+				end
+				transition -> TemprIncrease
+				event temp2 : MQTT?display_thermometer
+				guard temp2.t < tmrature - delta
+				action do
+					turnOn(switch_id)
+				end
+			}
+			transition -> Manual
+			event swon : MQTT?SwitchOn
+			action do
+				last_switch_state = 1
+			end
+			transition -> Manual
+			event swon : MQTT?SwitchOff
+			action do
+				last_switch_state = 0
+			end
+			transition -> Thermostat
+			event set_temp : MQTT?set_temperature
+			action do
+				tmrature = set_temp.t
+				println ("Enter running state with comfort temp: " + tmrature + " and temp deviation: " + delta)
+			end
+			transition -> Thermostat
+			event set_deviation : MQTT?set_temp_deviation
+			action do
+				delta = set_deviation.d
+				println ("Enter running state with comfort temp: " + tmrature + " and temp deviation: " + delta)
+			end
+		}
+		state Manual {
+			transition -> Manual
+			event MQTT?SwitchOn
+			action do
+				last_switch_state = 1
+			end
+			transition -> Manual
+			event MQTT?SwitchOff
+			action do
+				last_switch_state = 0
+			end
+			transition -> Thermostat
+			event set_temp : MQTT?set_temperature
+			action do
+				tmrature = set_temp.t
+			end
+			transition -> Thermostat
+			event set_deviation : MQTT?set_temp_deviation
+			action do
+				delta = set_deviation.d
+			end
+		}
+	}
+}
+datatype Byte<1>
+	@type_checker `Integer`
+	@c_type `uint8_t`
+	@java_type `byte`
+	@js_type `byte`
+	@go_type `byte`
+datatype Char<1>
+	@type_checker `Integer`
+	@c_type `char`
+	@java_type `byte`
+	@js_type `byte`
+	@go_type `byte`
+datatype Boolean<1>
+	@type_checker `Boolean`
+	@c_type `bool`
+	@java_type `boolean`
+	@js_type `boolean`
+	@go_type `bool`
+datatype UInt8<1>
+	@type_checker `Integer`
+	@c_type `uint8_t`
+	@java_type `int`
+	@js_type `short`
+	@go_type `uint8`
+datatype Int8<1>
+	@type_checker `Integer`
+	@c_type `int8_t`
+	@java_type `int`
+	@js_type `short`
+	@go_type `int8`
+datatype UInt16<2>
+	@type_checker `Integer`
+	@c_type `uint16_t`
+	@java_type `int`
+	@js_type `int`
+	@go_type `uint16`
+datatype Int16<2>
+	@type_checker `Integer`
+	@c_type `int16_t`
+	@java_type `int`
+	@js_type `short`
+	@go_type `int16`
+datatype Int32<4>
+	@type_checker `Integer`
+	@c_type `int32_t`
+	@java_type `long`
+	@js_type `int`
+	@go_type `int32`
+datatype UInt32<4>
+	@type_checker `Integer`
+	@c_type `uint32_t`
+	@java_type `long`
+	@js_type `long`
+	@go_type `uint32`
+datatype Long<4>
+	@type_checker `Integer`
+	@c_type `uint32_t`
+	@java_type `long`
+	@js_type `long`
+	@go_type `uint32`
+datatype Int64<8>
+	@type_checker `Integer`
+	@c_type `int64_t`
+	@java_type `long`
+	@js_type `long`
+	@go_type `int64`
+datatype UInt64<8>
+	@type_checker `Integer`
+	@c_type `uint64_t`
+	@java_type `long`
+	@js_type `long`
+	@go_type `uint64`
+datatype Integer<2>
+	@type_checker `Integer`
+	@c_type `int16_t`
+	@java_type `int`
+	@js_type `short`
+	@go_type `int16`
+datatype Float<4>
+	@type_checker `Real`
+	@c_type `float`
+	@java_type `float`
+	@js_type `float`
+	@go_type `float32`
+datatype Double<8>
+	@type_checker `Real`
+	@c_type `double`
+	@java_type `double`
+	@js_type `double`
+	@go_type `float64`
+object String
+	@serializable
+	@c_type `char *`
+	@arduino_type `String`
+	@java_type `String`
+	@js_type `String`
+	@go_type `string`
+enumeration DigitalState as UInt8 {
+	LOW = 0
+	HIGH = 1
+}
+thing fragment TemperatureMsg {
+	message set_temperature(t : Double)
+	message set_temp_deviation(d : Double)
+	message display_thermometer(id : Integer, txt : String, t : Double)
+	message temperature(id : Integer, txt : String, t : Double)
+	message add_thermometer(id : Integer, txt : String)
+}
+thing fragment DeviceGeneral {
+	message add_device(did : Integer)
+}
+thing fragment OnOffMsg {
+	message SwitchOn(did : Integer)
+	message SwitchOff(did : Integer)
+	message SwitchOn_Control(did : Integer)
+	message SwitchOff_Control(did : Integer)
+}
+protocol MQTT
+	@serializer `JSON`
+	@mqtt_broker_address `cps2020.westeurope.azurecontainer.io`
+	@mqtt_publish_topic `CPS2020/thingml`
+	@mqtt_subscribe_topic `CPS2020/thingmlOut`
+
+configuration CPS {
+	instance pim : PIM
+	connector pim.MQTT over MQTT
+}

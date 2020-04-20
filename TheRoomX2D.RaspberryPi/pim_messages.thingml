@@ -12,7 +12,7 @@ thing fragment GeneralMsg {
 
 //Temperature
 thing fragment TemperatureMsg {
-    message temperature(id:Integer, txt:String, t : Double);
+    message temperature(id:Integer,txt:String,t:Double);
     message add_thermometer(id:Integer,txt:String);
     message set_temperature(t:Double);
     message set_temp_deviation(d:Double);
@@ -31,5 +31,7 @@ thing fragment DeviceGeneral {
 thing fragment OnOffMsg includes DeviceGeneral{
 	message SwitchOn(did:Integer);
 	message SwitchOff(did:Integer);
+	message SwitchOn_Control(did:Integer);
+	message SwitchOff_Control(did:Integer);
 }
 

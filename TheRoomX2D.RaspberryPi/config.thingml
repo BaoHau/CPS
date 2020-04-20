@@ -29,6 +29,7 @@ configuration CPS {
 	// PIM outwards 
 	connector pim.request_sensor => T1.require_val
 	connector pim.request_actuator => onoff1.require_val
+	connector myself.request_actuator => onoff1.require_val
 	connector pim.human_output => myself.output
 	
 	connector myself.MQTT over MQTT

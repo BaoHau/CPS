@@ -20,14 +20,26 @@ thing Human includes TemperatureMsg, GeneralMsg, OnOffMsg
 		sends add_thermometer, add_device, SwitchOn, SwitchOff, set_temperature, set_temp_deviation, set_polling_interval, get_thermometer
 	}
 	
+	required port request_actuator{
+		sends SwitchOn_Control, SwitchOff_Control
+	}
+	
 	provided port MQTT {
-		receives add_thermometer, add_device, SwitchOn, SwitchOff, set_temperature, set_temp_deviation, set_polling_interval, get_thermometer
-		sends temperature, prompt, display_thermometer
+		receives add_thermometer, add_device, SwitchOn, SwitchOff, set_temperature, set_temp_deviation, set_polling_interval, get_thermometer,SwitchOn_Control, SwitchOff_Control
+		sends temperature, prompt, display_thermometer,set_temperature, set_temp_deviation,add_thermometer, add_device,SwitchOn,SwitchOff
 	}
 	
 	provided port output {
-		receives temperature, prompt, display_thermometer
+		receives temperature, prompt, display_thermometer,set_temperature, set_temp_deviation,add_thermometer, add_device,SwitchOn,SwitchOff
 	}
+	
+	function turnOn(did : Integer) do
+		request_actuator!SwitchOn_Control(did)
+	end
+	
+	function turnOff(did : Integer) do
+		request_actuator!SwitchOff_Control(did)
+	end
 	
 	statechart HumanBehavior init Idle {
 		state Idle {
@@ -39,6 +51,17 @@ thing Human includes TemperatureMsg, GeneralMsg, OnOffMsg
 			event ad:MQTT?add_device
 			action send_cmd!add_device(ad.did)
 			
+			transition -> Idle
+			event son:MQTT?SwitchOn_Control
+			action do
+				turnOn(son.did)
+			end
+			
+			transition -> Idle
+			event sof:MQTT?SwitchOff_Control
+			action do
+				turnOff(sof.did)
+			end			
 			transition -> Idle
 			event son:MQTT?SwitchOn
 			action do
@@ -70,15 +93,49 @@ thing Human includes TemperatureMsg, GeneralMsg, OnOffMsg
 			transition -> Idle
 			event tp:output?temperature
 			action do
-				println "id: ", tp.id, "  txt: ", tp.txt, "   t: ", tp.t
 				MQTT!temperature(tp.id,tp.txt,tp.t)
 			end
 			
 			transition -> Idle
 			event dt:output?display_thermometer
 			action do
-				println "Display thermometer id:  ", dt.id, "   text: ", dt.txt, "   temp: ",dt.t
 				MQTT!display_thermometer(dt.id,dt.txt,dt.t)
+			end
+			
+			transition -> Idle
+			event set_temp:output?set_temperature
+			action do
+				MQTT!set_temperature(set_temp.t)
+			end
+			
+			transition -> Idle
+			event set_deviation:output?set_temp_deviation
+			action do
+				MQTT!set_temp_deviation(set_deviation.d)
+			end
+			
+			transition -> Idle
+			event addt:output?add_thermometer
+			action do
+				MQTT!add_thermometer(addt.id,addt.txt)
+			end
+			
+			transition -> Idle
+			event adddev:output?add_device
+			action do
+				MQTT!add_device(adddev.did)			
+			end
+			
+			transition -> Idle
+			event swon:output?SwitchOn
+			action do
+				MQTT!SwitchOn(swon.did)
+			end
+			
+			transition -> Idle
+			event swoff:output?SwitchOff
+			action do
+				MQTT!SwitchOff(swoff.did)
 			end
 			
 			transition -> Idle
